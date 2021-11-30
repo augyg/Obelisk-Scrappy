@@ -5,6 +5,9 @@ Uses Obelisk to expose a backend route which will scrape the first image found o
 Hello Obsidian! 
 
 ## To start (in case you didnt know) ##
+
+Installing Obelisk: https://github.com/obsidiansystems/obelisk
+
 ```bash
 git clone https://github.com/augyg/Obelisk-Scrappy.git
 nix-shell -p obelisk 
