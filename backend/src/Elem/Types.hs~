@@ -1,0 +1,204 @@
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE TypeFamilies #-}
+
+module Elem.Types where
+
+import Data.Text (Text)
+import Data.Map (Map)
+
+import Data.Graph (Tree (Node), Forest)
+
+type ElemHead = (Elem, Attrs) 
+type Attrs = Map String String
+type Elem = String
+
+
+data AttrsError = IncorrectAttrs deriving Show
+
+data AttrsP = Attr String
+            | AnyAttr
+            deriving (Eq, Show, Ord)
+
+type AttrVal = String
+
+data AttrsPNew = XPath [(AttrsP, AttrVal)] | Attrs [AttrsP] | AnyAttrs
+
+
+
+-- | Just for strictTreeDetermineAllSubTrees 's sake
+type TextH = Text 
+
+---Future: Make both below into semigroups
+data InnerTextHTMLTree a = InnerTextHTMLTree { matches :: [a]
+                                             , _innerText :: String
+                                             , innerTree :: Forest ElemHead
+                                             } 
+
+instance Semigroup (InnerTextHTMLTree a) where
+  InnerTextHTMLTree a b c <> InnerTextHtmlTree d e f = InnerTextHtmlTree (a <> d) (b <> e) (c <> f)
+
+
+instance Monoid (InnerTextHtmlTree a) where
+  mempty = { matches = [], _innerText = "", innerTree = [] }
+
+--Note, maybe there's a way to extend this to being capable of gathering all text-distinct pieces of
+--the page
+
+-- | Note, this is the representation i'll be using
+data TreeHTML a = TreeHTML { topEl :: Elem
+                           , topAttrs :: Map String String
+                           --
+                           , matches' :: [a]
+                           , innerText' :: String
+                           , innerTree' :: Forest ElemHead 
+                           }
+
+-- | At end will be able to do Eq2 of trees where tree params are (tag,attrs)
+-- | Need some "Flexible Equality" match
+
+
+
+
+-- data HTMLMatcher a = IText String | Match a | Element (TreeHTML a)
+
+data HTMLMatcher (a :: * -> *) b = IText String | Element (a b) | Match b
+
+type HTMLMatcherM a = HTMLMatcher TreeHTML a
+
+
+-- | Would treeElemParser fail on cases like <input> with no end tag? 
+
+data Many a = Many a | One a 
+
+type TreeIndex = [Int]
+
+data MessyTree a b = Noise b | Nodee a [MessyTree a b]
+-- where the data at each node, describes the branch .. eg ElemHead
+
+data MessyTreeMatch a b c = Noise' a | Match' b | Node' c [MessyTreeMatch a b c] 
+
+
+
+-- practically just show but we dont wanna restrict the entirety
+-- of the show class for any sub-datatype in the context of html
+-- laws:
+  -- in the expression:
+       -- x <- parser input
+  -- showH x == input
+-- This is useful for extracting values while retaining structure for successive parsing 
+class ToHTMLString a where
+  showH :: a -> String
+
+-- In future, I may generalize this along with HtmlMatcher to be something * -> * -> *
+-- data Inner a = IsMatch a | NonMatch String | El (String, a) 
+
+-- type Inner' a = HTMLMatcher (String, a) a
+
+type Inner a = HTMLMatcher Elem' a
+
+-- Elem' matches string ~~ (,) a string 
+
+--  * -> * ~~ * -> *
+-- type Basic a = El (String, a)
+
+-- instance ToHTMLString a => ToHTMLString (Inner a) where
+--   showH NonMatch str = str
+--   showH IsMatch x = showH x
+
+-- instance ToHTMLString a => ToHTMLString (HTMLMatcher a) where
+--   showH IText str = str
+--   showH Match x = showH x
+--   showH Element treeH = treeElemToStr
+
+-- Behaves just like two are right beside each other 
+instance Semigroup (InnerTextResult a) where
+  InnerTextResult a b <> InnerTextResult a' b' = InnerTextResult (a <> a') (b <> b')
+
+
+  
+
+data InnerTextResult2 a = InnerTextResult2 { _matches :: [a]
+                                           , _fullInner :: String -- set to Nothing if TextOnly
+                                           } deriving Show
+
+-- Note: I could fold Elem' by labeling as Element then folding to ITR
+
+(Element $ elem) : [] --> ITR
+
+(a -> b -> b)
+
+func
+
+foldr :: (Elem' -> ITR -> ITR) -> ITR -> [] Element -> ITR 
+
+-- for InnerTextResult, should preserve as string
+-- for InnerTextHTMLTree , elem and attrs should build new single branch where branch = (,) elem attrs
+
+-- my recursive functions can build off of this mutual foldability and work for anything that can provide
+-- mutual foldability for any two relations 
+
+foldFuncToITR :: [Elem'] -> ITR -> ITR 
+foldFuncToITR InnerTextResult{..} (Elem'{..}:xs) =
+  func (InnerTextResult (matchesITR <> matchesEl) (fullInner <> innerHtmlFull) xs 
+
+case x of
+  Elem' x -> [Element (Elem' x)]
+
+foldr 
+
+foldElements :: [Elem'] -> InnnerTextResult
+foldElements elems = foldr func (empty :: InnerTextResult) (fmap Element elems) 
+
+foldr func mempty htmlMatchers 
+
+foldrForHTMLGen :: func@(HMatcher a -> ITR -> ITR) -> mempty -> 
+
+instance Monoid (InnerTextResult a) where
+  mempty = { _matches = [], _fullInner = "" }
+
+
+data InnerTextResult a = InnerTextResult { match :: a
+                                         , fullInner :: String -- set to Nothing if TextOnly
+                                         } deriving Show
+
+--Note that the fullInner would be useful for stepping in cases as well needing some pieces of the
+-- whole, in the case, that theres a match (like a form: want a form if it has search in it, then
+-- we'd want to use certain html elements within the form such as <input> or <select>
+--so result would be : InnerTextResult { match = "Search", fullInner = """<input> ... <select> """ } 
+
+-- | node-like
+data Elem' a = Elem' { _el :: Elem -- change to Elem?
+                     , _attrs :: Map String String --Attrs needs to become map
+                     , innerMatches :: [a] --will be "" if not specified
+                     , innerHtmlFull :: String
+                     } deriving Show
+
+
+-- need system too for 
+-- Just shared accessors of html datatypes 
+class IsHTMLRep (a :: * -> *) where
+--type InnerHTMLRep a = something 
+  el :: a b -> Elem
+  attrs :: a b -> Attrs
+  innerText :: a b -> Text
+--
+
+-- Recursive fold of multi-constructor structure 
+class InnerHTMLRep a where
+  -- type HMatcher a b c :: * -> *
+  foldHtmlMatcher :: (IsHTMLRep b) => [HTMLMatcher b d] -> a d
+  emptyInner :: a d
+ 
+instance InnerHTMLRep InnerTextHTMLTree where
+  -- type HMatcher TreeHTML InnerTextHTMLTree c = HMatcher' c 
+  emptyInner = InnerTextHTMLTree { matches = []
+                                 , innerText = ""
+                                 , innerTree = [] }
+  foldHtmlMatcher = foldHtmlMatcher' -- original one
+
+
+type HMatcher' a b c = [HTMLMatcher b c] -> a c
+
+-- this builds off the type classification of IsHTMLRep
+
+

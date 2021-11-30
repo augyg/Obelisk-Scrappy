@@ -1,0 +1,87 @@
+name: frontend
+version: 0.1
+cabal-version: >= 1.8
+build-type: Simple
+
+library
+  hs-source-dirs: src
+  build-depends: base
+               , common
+               , obelisk-frontend
+               , obelisk-route
+               , jsaddle
+               , reflex-dom
+               , obelisk-executable-config-lookup
+               , obelisk-generated-static
+               , text
+                       -->=4.12 && <4.13
+               , parser-combinators
+               , parsec
+               , megaparsec
+               , replace-megaparsec
+               , extra
+               , modern-uri
+               , http-client
+               , HTTP
+               , http-client-tls
+               , containers
+               , text
+               , bytestring 
+               , time
+               , transformers
+               , mtl
+               , exceptions
+               , http-types
+               , stm
+               , parallel
+  exposed-modules:
+    Frontend
+    FrontendTwo
+    BuildActions
+    Requests
+    Find
+    Links
+    Scrape
+    Types
+    Elem.ChainHTML
+    Elem.ElemHeadParse
+    Elem.ITextElemParser
+    Elem.SimpleElemParser
+    Elem.TreeElemParser
+    Elem.Types
+  ghc-options: -Wall -Wredundant-constraints -Wincomplete-uni-patterns -Wincomplete-record-updates -O -fno-show-valid-hole-fits
+
+executable frontend
+  main-is: main.hs
+  hs-source-dirs: src-bin
+  build-depends: base
+               , common
+               , obelisk-frontend
+               , obelisk-route
+               , reflex-dom
+               , obelisk-generated-static
+               , frontend
+               , parsec
+               , megaparsec
+               , replace-megaparsec
+               , extra
+               , modern-uri
+               , http-client
+               , HTTP
+               , http-client-tls
+               , containers
+               , text
+               , bytestring 
+               , time
+               , transformers
+               , mtl
+               , exceptions
+               , http-types
+               , stm
+               , parallel
+  ghc-options: -threaded -O -Wall -Wredundant-constraints -Wincomplete-uni-patterns -Wincomplete-record-updates -fno-show-valid-hole-fits
+  if impl(ghcjs)
+    ghc-options: -dedupe
+    cpp-options: -DGHCJS_BROWSER
+  if os(darwin)
+    ghc-options: -dynamic
