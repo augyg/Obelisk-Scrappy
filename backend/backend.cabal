@@ -12,6 +12,25 @@ library
                , frontend
                , obelisk-backend
                , obelisk-route
+               , parser-combinators
+               , parsec
+               , megaparsec
+               , replace-megaparsec
+               , extra
+               , modern-uri
+               , http-client
+               , HTTP
+               , http-client-tls
+               , containers
+               , text
+               , bytestring 
+               , time
+               , transformers
+               , mtl
+               , exceptions
+               , http-types
+               , stm
+               , parallel
   exposed-modules:
     Backend
   ghc-options: -Wall -Wredundant-constraints -Wincomplete-uni-patterns -Wincomplete-record-updates -O -fno-show-valid-hole-fits
@@ -27,3 +46,22 @@ executable backend
                , common
                , frontend
                , obelisk-backend
+               , parser-combinators
+               , parsec
+               , megaparsec
+               , replace-megaparsec
+               , extra
+               , modern-uri
+               , http-client
+               , HTTP
+               , http-client-tls
+               , containers
+               , text
+               , bytestring 
+               , time
+               , transformers
+               , mtl
+               , exceptions
+               , http-types
+               , stm
+               , parallel
