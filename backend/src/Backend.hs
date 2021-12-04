@@ -4,6 +4,7 @@
 module Backend where
 
 import Snap.Core
+import Snap.Util.CORS (applyCORS, defaultOptions) --CORSOptions(..), OriginList(Everywhere))
 import Data.Maybe (fromJust)
 
 import Scrape (runScraperOnHtml)
@@ -21,11 +22,11 @@ import Obelisk.Backend
 import Obelisk.Route
 import Control.Monad.IO.Class
 
-type HrefURI = String 
+type Src = String 
 
 -- | Written like this in order to discard memory as soon as its not needed
-hrefScraper :: Stream s m Char => ParsecT s u m HrefURI
-hrefScraper = do
+srcScraper :: Stream s m Char => ParsecT s u m Src
+srcScraper = do
   -- we parse more than we need to in order to ensure that we match the correct pattern of an href
   (_, attributes) <- parseOpeningTagF "class" (=="yWs4tf")
   case Map.lookup "src" attributes of
@@ -41,15 +42,17 @@ backend :: Backend BackendRoute FrontendRoute
 backend = Backend
   { _backend_run =
       \serve -> serve $ \case 
-        BackendRoute_Main :/ word -> do
+        BackendRoute_Main :/ word -> applyCORS defaultOptions $ do
+          req <- getRequest
+          liftIO $ print $ rqMethod req
           liftIO $ print word
-          html <- liftIO $ getHtml' (mkGoogleUrl . T.unpack $ (word :: T.Text))
-          -- liftIO $ mapM_ print $ fromJust $ runScraperOnHtml (el "img" []) html
-          -- liftIO $ print $ runScraperOnHtml (parseOpeningTagF "class" (=="rg_i Q4LuWd")) html
-          case runScraperOnHtml hrefScraper html of
-            Just (href:_) -> writeText . T.pack $ href
-            _ -> writeText "nope not yet" --sowwyIveFailedYou
-        BackendRoute_Missing :/ () -> error "404"
+          html <- liftIO $ getHtml' (mkGoogleUrl . T.unpack $ word)
+          case runScraperOnHtml srcScraper html of
+            Just (href:_) -> (liftIO $ print ("HREF=" <> href)) *> (writeText . T.pack $ href)
+            _ -> writeText sowwyIveFailedYou
+        BackendRoute_Missing :/ () -> (liftIO $ print "fail") >> writeText sowwyIveFailedYou
+          -- error "404" -- we need to show something in this simple app and we cant gurantee that
+          
           -- ()
           -- mainB word 
   , _backend_routeEncoder = fullRouteEncoder
@@ -74,3 +77,4 @@ type HrefURL = String
 
 getHref' :: ElemHead -> Maybe HrefURL
 getHref' (_, as) = Map.lookup "href" as 
+

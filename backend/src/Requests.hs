@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
 
 module Requests where 
 
@@ -12,82 +14,83 @@ import Network.HTTP.Types.Header
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Data.Functor.Identity (Identity)
 import Text.Parsec (ParsecT, ParseError, parse, Stream, many)
-import Network.HTTP.Client (Manager, Proxy(..), HttpException, httpLbs, responseBody, parseRequest
+import Network.HTTP.Client (Manager, Proxy(..), HttpException, Response, httpLbs, responseBody, parseRequest
                            , secure, requestHeaders, newManager, useProxy, managerSetSecureProxy)
 import Data.Text (Text, unpack, pack)
 import Data.Text.Encoding (encodeUtf8)
-import Data.Text.Lazy (toStrict)
-import Data.Text.Lazy.Encoding (decodeUtf8)
+import qualified Data.Text.Lazy as LazyTX (toStrict, Text)
+import qualified Data.Text.Lazy.Encoding as Lazy (decodeUtf8With)
+import Data.ByteString.Lazy (ByteString)
 import Control.Exception (catch)
 
 type Link = String
 type ParsecError = ParseError
 
 
--- Applied inside of execState                          ---Goal---IO (Either ParsecError (Maybe a))
-scrapeUrlWith :: ParsecT Text () Identity a -> Manager -> Link -> IO (Either ParsecError a)
-scrapeUrlWith parser manager url = do
-  --replace with successive requesting with cookies
-  -- let url' = evalLink url
-  request <- parseRequest url
-  response <- httpLbs request manager
-  let
-    dadBod = toStrict $ decodeUtf8 (responseBody response)
-  -- response <- (decodeUtf8 (responseBody response)) <$> httpLbs request manager
+-- -- Applied inside of execState                          ---Goal---IO (Either ParsecError (Maybe a))
+-- scrapeUrlWith :: ParsecT Text () Identity a -> Manager -> Link -> IO (Either ParsecError a)
+-- scrapeUrlWith parser manager url = do
+--   --replace with successive requesting with cookies
+--   -- let url' = evalLink url
+--   request <- parseRequest url
+--   response <- httpLbs request manager
+--   let
+--     dadBod = toStrict $ decodeUtf8 (responseBody response)
+--   -- response <- (decodeUtf8 (responseBody response)) <$> httpLbs request manager
 
-  return $ parse parser ("site" <> url) dadBod
+--   return $ parse parser ("site" <> url) dadBod
 
 
 type Html = String
 
+extractDadBod :: Response ByteString -> String 
+extractDadBod response = (unpack . LazyTX.toStrict . mySafeDecoder . responseBody) response
 
+mySafeDecoder :: ByteString -> LazyTX.Text
+mySafeDecoder = Lazy.decodeUtf8With (\_ _ -> Just '?')
 
-
-
-
+-- doSignin :: ElemHead -> ElemHead -> Url 
+ 
 -- | Get html with no Proxy 
 getHtml' :: String -> IO String
 getHtml' url = do
   mgrHttps <- newManager tlsManagerSettings
   requ <- parseRequest url
   response <- httpLbs requ mgrHttps
-  let
-    dadBod = (unpack . toStrict . decodeUtf8 . responseBody) response
-
-  return dadBod
+  return $ extractDadBod response
+  
 
 
 -- | Gurantees retrieval of Html by replacing the proxy if we are blocked or the proxy fails 
 getHtml :: Manager -> String -> IO (Manager, Html)
-getHtml manager url = do
-  -- mgrHttps <- newManager tlsManagerSettings
+getHtml mgr url = do
   requ <- parseRequest url
   let
     headers = [ (hUserAgent, "Mozilla/5.0 (X11; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0")
-              -- , (hAccept, "image/webp, */*")
               , (hAcceptLanguage, "en-US,en;q=0.5")
               , (hAcceptEncoding, "gzip, deflate, br")
               , (hConnection, "keep-alive")
-              -- , (hReferer, "https://www.amazon.ca/")
-              -- , (hTE, "Trailers")
               ]
     req = requ { requestHeaders = (fmap . fmap) (encodeUtf8 . pack) headers
                , secure = True
                }
+  (mgr', r) <- catch (fmap ((mgr,) . extractDadBod) $ httpLbs requ mgr) (recoverMgr url)
+  return (mgr', r)
 
-    dadBod response = (unpack . toStrict . decodeUtf8 . responseBody) response
-    
-    f = do
-      res <- httpLbs requ manager
-      return (manager, dadBod res)
+recoverMgr :: String -> HttpException -> IO (Manager, String)
+recoverMgr url _ = mkManager >>= flip getHtml url
 
-    g :: HttpException -> IO (Manager, String)
-    g = (\_ -> do
-            newManager <- mkManager
-            getHtml newManager url
-        )
-  (manager', response) <- catch f g 
-  return (manager', response)
+-- -- | Gurantees retrieval of Html by replacing the proxy if we are blocked or the proxy fails 
+-- getHtmlV2 :: Manager -> String -> IO (Manager, Html)
+-- getHtmlV2 mgr url headers = do
+--   requ <- parseRequest url
+--   let 
+--     req = requ { requestHeaders = (fmap . fmap) (encodeUtf8 . pack) headers
+--                , secure = True
+--                }
+--     recover = ((\_ -> mkManager >>= flip getHtml url))
+--   (mgr', r) <- catch (fmap ((mgr,) . extractDadBod) $ httpLbs requ mgr) recover 
+--   return (mgr', r)
 
 
 

@@ -31,6 +31,7 @@ library
                , http-types
                , stm
                , parallel
+               , snap-cors
   exposed-modules:
     Backend
   ghc-options: -Wall -Wredundant-constraints -Wincomplete-uni-patterns -Wincomplete-record-updates -O -fno-show-valid-hole-fits
@@ -65,3 +66,4 @@ executable backend
                , http-types
                , stm
                , parallel
+               , snap-cors
